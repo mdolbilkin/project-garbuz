@@ -1,0 +1,273 @@
+import themidibus.*;
+import javax.sound.midi.MidiMessage;
+// Для обработки нот и ошибок:
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Type;
+import java.util.Locale;
+import static java.lang.System.out;
+import static java.lang.System.err;
+
+MidiBus myBus; 
+int midiDevice  = 1, xpos, ypos, len;
+int  colorline = 255, deltacol, sideline = 200, countlines = 0;
+boolean drawline = false, backblack = false, changeback = false; 
+
+IntList positionsX, positionsY;
+
+boolean changebackgr = false, backcol = false;
+int deltadiamLP = 0, deltadiamHP = 0, x1, y1;
+float diam, diamHP = 100, maxd;
+
+int amount = 12;
+float x[] = new float[amount];
+float y[] = new float[amount];
+float velx[] = new float[amount];
+float vely[] = new float[amount];
+int velx1 = 5, vely1 = 7;
+
+int countbeats = 0, numOfAnim = 1, radintro = 10;
+boolean gointro;
+
+void setup() {
+  for (int i = 0; i < amountForSetka; i++) { //Для создания сетки
+    RForSetka[i] = 3;
+    xForSetka[i] = random(RForSetka[i], width - RForSetka[i]);
+    yForSetka[i] = random(RForSetka[i], height - RForSetka[i]);
+    velXForSetka[i] = random(2, 6) * ((int)random(0, 2) == 0 ? 1 : -1);
+    velYForSetka[i] = random(2, 6) * ((int)random(0, 2) == 0 ? 1 : -1); //направление векторов и скорость объектов
+  } //Для создания сетки
+  for(int i = 0; i < stars.length; i++ ){//для создания массива звезд 
+    stars[i] = new star();
+  } //для создания массива звезд
+  background(0);
+  size(1200, 700);
+
+  MidiBus.list(); 
+  myBus = new MidiBus(this, midiDevice, 4);
+
+  positionsX = new IntList();
+  positionsY = new IntList();
+
+  x1 = width/2;
+  y1 = height/2;
+
+  if (height > width) {
+    diam = width*0.6;
+  } else {
+    diam = height*0.6;
+  }
+  maxd = diam;
+
+  for (int i = 0; i < amount; i++) {
+    x[i] = random((diamHP/2+50), width - (diamHP/2+50));
+    y[i] = random((diamHP/2 +50), height - (diamHP/2 + 50));
+    velx[i] = random(5, 20) * ((int)random(0, 2)==0?1:-1);
+    vely[i] = random(3, 10) * ((int)random(0, 2)==0?1:-1);
+  }
+}
+
+void draw() {
+  drawHedgehog();
+  if (gointro) {
+    fill(255);
+    if (radintro < max(height, width))
+    {
+      circle(width/2, height/2, radintro);
+      radintro += 40;
+    } else {
+      radintro = 20;
+      gointro = false;
+      background(0);
+    }
+  } else {
+    if (numOfAnim == 1) {
+      strokeWeight(8);
+      if (countlines > 10) {
+        if (backblack) { 
+          background(0);
+          backblack = false;
+        } else {
+          background(255);
+          backblack = true;
+        }
+        positionsX.clear();
+        positionsY.clear();
+        countlines = 0;
+      }
+      if (drawline)
+      {
+        xpos = int(random(50, width - 200));
+        ypos = int(random(50, height-200));
+        positionsX.append(xpos);
+        positionsY.append(ypos);
+        countlines += 1;
+        drawline = false;
+      }
+      stroke(colorline);
+      for (int i = 0; i < positionsX.size(); i++) {
+        line(positionsX.get(i), positionsY.get(i), positionsX.get(i) + 200, positionsY.get(i) + sideline);
+      }
+      if (colorline - deltacol > 0)
+      {
+        colorline -= 3;
+        deltacol += 1;
+      } else {
+        colorline = 255;
+        deltacol = 6;
+      }
+      if (changeback) {
+        if (backblack) { 
+          background(0);
+          backblack = false;
+        } else {
+          background(255);
+          backblack = true;
+        }
+        changeback = false;
+      }
+    } else {
+      background(0);
+      for (int i = 0; i < amount; i++) {
+        x[i] += velx[i];
+        y[i] += vely[i];
+        if (x[i] < (10+(diamHP/2)) || x[i] > (-10+(width - diamHP/2))) {
+          velx[i] = -velx[i];
+          if (diamHP > 40) {
+            diamHP -= 15;
+          }
+        }
+        if (y[i] < (10+(diamHP/2))|| y[i] > (-10+(height - diamHP/2))) {
+          vely[i] = -vely[i];
+          if (diamHP > 40) {
+            diamHP -= 15;
+          }
+        }
+      }
+      for (int i = 0; i < amount; i++) {
+        for (int j = 0; j < i; j++) {
+          float distance = dist(x[i], y[i], x[j], y[j]);
+          if (distance < 250) {
+            strokeWeight(map(distance, 0, 250, 4, 1));
+            stroke(255);
+            line (x[i], y[i], x[j], y[j]);
+          }
+        }
+      }
+      for (int i = 0; i < amount; i++) {
+        noStroke();
+        if (changebackgr) {
+          if (backcol) { 
+            fill(80, 230, 250);
+            backcol = false;
+          } else {
+            fill(255);
+            backcol = true;
+          }
+          changebackgr = false;
+        }
+        circle(x[i], y[i], diamHP);
+      }
+      if (deltadiamHP > 0) {
+        if ( diamHP <= 100) {
+          diamHP += deltadiamHP;
+          deltadiamHP -= 5;
+        } else {
+          diamHP -= 1;
+          diamHP = 80;
+        }
+      } else {
+        if (diamHP > 1) {
+          diamHP -= 0.5;
+        }
+      }
+
+      x1 += velx1;
+      y1 += vely1;
+      if (x1 < 10+(diam/2) || x1 > (-10+ (width - diam/2))) {
+        velx1 = -velx1;
+        if (diam > 90) {
+          diam -= 30;
+        }
+      }
+      if (y1 < 10+(diam/2) || y1 > (-10+ (height - diam/2))) {
+        vely1 = -vely1;
+        if (diam > 90) {
+          diam -= 30;
+        }
+      }
+      circle(x1, y1, diam);
+
+      if (deltadiamLP > 0) {
+        if ( diam <= maxd) {
+          diam += deltadiamLP;
+          deltadiamLP -= 10;
+        } else {
+          diam -= 30;
+        }
+      } else {
+        if (diam > 3) {
+          diam -= 1;
+        }
+      }
+      circle(x1, y1, diam);
+    }
+  }
+}
+
+void midiMessage(MidiMessage message, long timestamp, String bus_name) { 
+  int note = (int)(message.getMessage()[1] & 0xFF);
+  int vel = (int)(message.getMessage()[2] & 0xFF);
+  print("Bus " + bus_name + ": Note "+ note + ", vel " + vel);
+  if (vel > 0 ) {
+    switch(note)
+    {
+    case 64:
+      if (numOfAnim == 1) {
+        drawline = true;
+      } else {
+        deltadiamHP += 10;
+      }
+      break;
+    case 65:
+      countbeats += 1;
+      if (countbeats > 40) {
+        countbeats = 0;
+
+        if (random(0, 3)!=0) {
+          // cahnge
+          gointro = true;
+          if (numOfAnim == 1) {
+            numOfAnim = 2;
+          } else {
+            numOfAnim = 1;
+          }
+        }
+      }
+      if (numOfAnim == 1) {
+        backblack = true;
+        if (sideline>0) sideline = -200;
+        else sideline = 200;
+        len = positionsX.size();
+        positionsX.clear();
+        positionsY.clear();
+        for (int i = 0; i < len; i++) {
+
+          positionsX.append(int(random(50, width - 200)));
+          positionsY.append(int(random(50, height-200)));
+        }
+      } else {
+        backcol = true;
+        deltadiamLP += 25;
+      }
+      break;
+    case 66:
+      if (numOfAnim ==1) {
+        changeback = true;
+      } else {
+        changebackgr = true;
+      }
+      break;
+    }
+  }
+}
